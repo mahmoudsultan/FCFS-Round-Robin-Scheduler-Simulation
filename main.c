@@ -10,6 +10,7 @@
 
 #include "fcfs.h"
 
+// args: alg_type[0, 1] quantum_time filename
 int main(int argc, char* argv[]) {
 
     // extract running arguments
