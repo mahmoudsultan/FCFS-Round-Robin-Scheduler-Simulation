@@ -13,10 +13,10 @@ void enque(ProcessQueue *q, Process *process) {
         fprintf(stderr, "Queue is Null");
         return;
     }
-
+    
     ProcessQueueNode *processQueueNode = malloc(sizeof(ProcessQueueNode));
     processQueueNode->process = process;
-
+    
     processQueueNode->next = NULL;
     // if queue is empty
     if (q->head == NULL) {
@@ -32,26 +32,26 @@ Process* deque(ProcessQueue *q) {
     if (q->head == NULL) {
         return NULL;
     }
-
+    
     Process* temp = q->head->process;
     ProcessQueueNode* temp_node = q->head;
-
+    
     if (q->head == q->tail) {
         q->head = q->tail = NULL;
     } else {
         q->head = q->head->next;
     }
-
+    
     free(temp_node);
-
+    
     if (DEBUG_MODE) {
         ProcessQueueNode *ptr = q->head;
         while(ptr != NULL) {
-            printf("DEBUG: FCFS: QUEUE AFTER DEQUE: node id %d \n", ptr->process->process_id);
+//            printf("DEBUG: FCFS: QUEUE AFTER DEQUE: node id %d \n", ptr->process->process_id);
             ptr = ptr->next;
         }
     }
-
+    
     return temp;
 }
 
@@ -66,11 +66,11 @@ void build_process_queue(ProcessQueue *q, Process **process_list) {
         enque(q, ptr);
         ptr = process_list[++count];
     }
-
+    
     if (DEBUG_MODE) {
         ProcessQueueNode *ptr = q->head;
         while(ptr != NULL) {
-            printf("DEBUG: FCFS: ENQUEUE: node id %d \n", ptr->process->process_id);
+//            printf("DEBUG: FCFS: ENQUEUE: node id %d \n", ptr->process->process_id);
             ptr = ptr->next;
         }
     }
@@ -101,7 +101,7 @@ Process* choose_running_process(ProcessQueue* q, int tick) {
     if (q->head == NULL) {
         return NULL;
     }
-
+    
     Process* top_process = peak(q);
     if (top_process->arrival_time > tick) {
         // arival time not yet reached
@@ -110,47 +110,48 @@ Process* choose_running_process(ProcessQueue* q, int tick) {
         deque(q);
         top_process->status = RUNNING;
     }
+    return NULL;
 }
 
 int run_fcfs(Process **process_list, int no_of_processes) {
     // open file to keep output
     FILE* f = fopen("FCFS.out", "w");
-
+    
     // keep a queue of ready processes
     ProcessQueue q;
     q.head = q.tail = NULL;
-
+    
     // keep a list of IO Blocked processes
     Process** blocked_processes = malloc(sizeof(Process) * (no_of_processes - 1));
     int blocked_count = 0;
-
+    
     // keep track of running process
     Process* running = NULL;
-
+    
     // keeps track of terminated no of processes
     int terminated_count = 0;
-
+    
     int i;
     Process* temp;
-
+    
     // start cpu ticking
     int tick = 0, not_utilized_count = 0;
-
+    
     Process** to_be_enqued = malloc(sizeof(Process) * (no_of_processes - 1));
     int to_be_enqued_count = 0;
-
+    
     // while there's a process either in ready queue or blocked queue
     while(terminated_count != no_of_processes) {
         for (i = 0; i < to_be_enqued_count; i++)
             to_be_enqued[i] = NULL;
         to_be_enqued_count = 0;
-
+        
         // get processes that arrived to the system
         to_be_enqued_count += get_arrived_processes(to_be_enqued, process_list, tick);
         if (DEBUG_MODE) {
             printf("DEBUG: tick %d - %d arrived \n", tick, to_be_enqued_count);
         }
-
+        
         /* Iterate over blocked processes and increase spent io time
          * if the process finished its io time add it to the to be enqued
          * list, and change its status to READY
@@ -166,7 +167,7 @@ int run_fcfs(Process **process_list, int no_of_processes) {
                 temp->status = READY;
                 to_be_enqued[to_be_enqued_count++] = temp;
                 to_be_enqued[to_be_enqued_count] = NULL;
-
+                
                 // swap it with the last blocked process in list
                 blocked_processes[i] = blocked_processes[blocked_count - 1];
                 blocked_processes[blocked_count - 1] = NULL;
@@ -175,12 +176,12 @@ int run_fcfs(Process **process_list, int no_of_processes) {
                 i++;
             }
         }
-
+        
         /* check if process is running increase its CPU time */
         if (running != NULL) {
             running->spent_cpu_time++;
             if (running->spent_cpu_time == running->cpu_time ||
-                    running->spent_cpu_time == running->cpu_time * 2) {
+                running->spent_cpu_time == running->cpu_time * 2) {
                 // if * 2 then it should be terminated
                 if (running->spent_cpu_time == running->cpu_time * 2) {
                     running->status = TERMINATED;
@@ -196,12 +197,12 @@ int run_fcfs(Process **process_list, int no_of_processes) {
                 }
             }
         }
-
-
+        
+        
         // sort by process id and enque all
         sort_process_list_by_id(to_be_enqued, to_be_enqued_count);
         build_process_queue(&q, to_be_enqued);
-
+        
         // choose a process to run
         if (running == NULL) {
             running = deque(&q);
@@ -211,7 +212,7 @@ int run_fcfs(Process **process_list, int no_of_processes) {
                 not_utilized_count++;
             }
         }
-
+        
         // print processes info
         Process *current_process = *process_list;
         int count = 0;
@@ -242,7 +243,7 @@ int run_fcfs(Process **process_list, int no_of_processes) {
         printf("%d\n", not_utilized_count);
     }
     fprintf(f, "CPU Utilization: %f\n", ((tick - not_utilized_count) * 1.0) / tick);
-
+    
     // print processes info
     Process *current_process = *process_list;
     int count = 0;
@@ -251,6 +252,106 @@ int run_fcfs(Process **process_list, int no_of_processes) {
                 current_process->turnaround);
         current_process = process_list[++count];
     }
+    
+    return 0;
+}
 
+
+int rrr(Process **process_list, int no_of_processes, int quantum){
+    int numProcessesFinished = 0, currentProcessRunTime = 0;
+    ProcessQueue queue;
+    queue.head = queue.tail = NULL;
+    Process *currentProcess = NULL;
+    int cpuTick=0;
+    while(numProcessesFinished < no_of_processes){
+        //didn't handle process id rubbish
+        int enquedIndex = 0;
+        while(enquedIndex < no_of_processes  ){
+            if(process_list[enquedIndex]->arrival_time == cpuTick){
+            Process *p = process_list[enquedIndex++];
+            p->status = 1;
+            enque(&queue, p);
+            }
+            enquedIndex++;
+        }
+        if(currentProcess == NULL)
+            currentProcess = deque(&queue);
+        
+        if(currentProcessRunTime >= quantum){
+            //preempt the process
+                enque(&queue, currentProcess);
+            currentProcess = deque(&queue);
+            currentProcessRunTime = 0;
+        }
+        if(currentProcess == NULL){
+            cpuTick++;
+            continue;
+        }
+            switch(currentProcess->status){
+                    // 0: Running, 1: Ready, 2: Blocking, 3: Terminated, None: 4
+                case 0:
+                    if(currentProcess->spent_cpu_time == currentProcess->cpu_time){
+                        if(currentProcess->spent_io_time >= currentProcess->io_time && currentProcess->io_time != 0){
+                                currentProcess->status = 3;
+                                numProcessesFinished++;
+                                currentProcessRunTime = 0;
+                                currentProcess = deque(&queue);
+                        } else {
+//                        enque(&queue, currentProcess);
+                        currentProcess->status = 2;
+//                            currentProcess = deque(&queue);
+//                            currentProcessRunTime = 0;
+//                            currentProcess->spent_io_time++;
+                        }
+                        
+
+                    }else if (currentProcess->spent_cpu_time == 2 * currentProcess->cpu_time){
+                        currentProcess->status = 3;
+                        numProcessesFinished++;
+                        currentProcessRunTime = 0;
+                        currentProcess = deque(&queue);
+                    }
+                    if(currentProcess == NULL){
+                        cpuTick++;
+                        continue;
+                    }
+                    if(currentProcess->status == 0){
+                        currentProcess->spent_cpu_time++;
+                        printf("%d Process(%d) running\n",cpuTick,currentProcess->process_id);
+
+                    }else{
+                        currentProcess->spent_io_time++;
+                        printf("%d Process(%d) blocking\n",cpuTick,currentProcess->process_id);
+                    }
+                    break;
+                case 1:
+                    currentProcess->status = 0;
+                    currentProcess->spent_cpu_time++;
+                    printf("%d Process(%d) running\n",cpuTick,currentProcess->process_id);
+
+                    break;
+                case 2:
+                    if(currentProcess->spent_io_time >= currentProcess->io_time){
+                        currentProcess->status = 0;
+                        currentProcess->spent_cpu_time++;
+                        printf("%d Process(%d) running\n",cpuTick,currentProcess->process_id);
+                        //                    currentProcess->status = 0;
+                        //                    enque(&queue,currentProcess);
+                        //                    currentProcess = deque(&queue);
+                        //                    currentProcessRunTime = 0;
+                        //                    currentProcess->spent_cpu_time++;
+                        //                    printf("%d Process(%d) running",cpuTick,currentProcess->process_id);
+                    } else {
+                        currentProcess->spent_io_time++;
+                        printf("%d Process(%d) blocking\n",cpuTick,currentProcess->process_id);
+                    }
+                    break;
+                default:
+                    break;
+            }
+        
+        currentProcessRunTime++;
+        cpuTick++;
+    }
     return 0;
 }

@@ -19,3 +19,5 @@ typedef struct ProcessQueue {
 } ProcessQueue;
 
 int run_fcfs(Process **process_list, int no_of_processes);
+
+int rrr(Process **process_list, int no_of_processes, int quantum);

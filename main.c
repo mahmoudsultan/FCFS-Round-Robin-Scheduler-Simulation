@@ -45,6 +45,8 @@ int main(int argc, char* argv[]) {
         new_process->io_time = io_time;
         new_process->arrival_time = arrival_time;
         new_process->status = 4;
+        new_process->spent_cpu_time = 0;
+        new_process->spent_io_time = 0;
 
         if (DEBUG_MODE) {
             printf("DEBUG: Process: %d %d %d %d\n", process_id, cpu_time, io_time, arrival_time);
@@ -73,9 +75,11 @@ int main(int argc, char* argv[]) {
     fclose(input_file);
 
     // run the scheduler alg. based on the argument given
+    sort_process_list(process_list, no_of_processes);
     if (alg_type == 0) {
-        sort_process_list(process_list, no_of_processes);
         run_fcfs(process_list, no_of_processes);
+    } else {
+        rrr(process_list, no_of_processes,quantum_time);
     }
 
     return 0;
