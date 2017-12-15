@@ -8,7 +8,6 @@
 #define MAX_PROCESS_COUNT 10
 #define DEBUG_MODE 0
 
-//#include "process.h"
 #include "fcfs.h"
 
 int main(int argc, char* argv[]) {
@@ -69,15 +68,14 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // close the input file
+    fclose(input_file);
+
     // run the scheduler alg. based on the argument given
     if (alg_type == 0) {
         sort_process_list(process_list, no_of_processes);
         run_fcfs(process_list, no_of_processes);
     }
 
-    // close the input file
-    fclose(input_file);
-
-    // ...
     return 0;
 }
