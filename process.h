@@ -19,6 +19,7 @@ typedef struct Process {
     int spent_cpu_time;
     int spent_io_time;
     int turnaround;
+    int executionStatus; //0 in first burst, 1 in blocking, 2 in iO burst
 } Process;
 
 void sort_process_list(Process** process_list, int no_of_processes);

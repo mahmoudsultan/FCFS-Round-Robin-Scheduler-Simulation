@@ -261,19 +261,44 @@ int rrr(Process **process_list, int no_of_processes, int quantum){
     int numProcessesFinished = 0, currentProcessRunTime = 0;
     ProcessQueue queue;
     queue.head = queue.tail = NULL;
+    ProcessQueue dummy;
+    ProcessQueue ioQueue;
+    dummy.head = dummy.tail = NULL;
+    int shouldIncrementIO = 1;
+    ioQueue.head = ioQueue.tail = NULL;
     Process *currentProcess = NULL;
     int cpuTick=0;
     while(numProcessesFinished < no_of_processes){
         //didn't handle process id rubbish
         int enquedIndex = 0;
-        while(enquedIndex < no_of_processes  ){
+        while(enquedIndex < no_of_processes ){
             if(process_list[enquedIndex]->arrival_time == cpuTick){
             Process *p = process_list[enquedIndex++];
             p->status = 1;
+                p->executionStatus = 0;
             enque(&queue, p);
             }
             enquedIndex++;
         }
+        
+
+        //increment IO
+        if(shouldIncrementIO ) {
+        while(ioQueue.head != NULL && peak(&ioQueue) != NULL){
+            Process* current = deque(&ioQueue);
+            current->spent_io_time++;
+            if(current->spent_io_time >= current->io_time){
+                current->executionStatus = 2;
+                current->status = 1;
+                current->spent_cpu_time = 0;
+                enque(&queue, current);
+            } else
+                enque(&dummy, current);
+        }
+        while(dummy.head != NULL && peak(&dummy) != NULL)
+            enque(&ioQueue, deque(&dummy));
+        }
+        shouldIncrementIO = 1;
         if(currentProcess == NULL)
             currentProcess = deque(&queue);
         
@@ -284,71 +309,125 @@ int rrr(Process **process_list, int no_of_processes, int quantum){
             currentProcessRunTime = 0;
         }
         if(currentProcess == NULL){
+            int count = 0;
+            Process *current_process = *process_list;
+            while(current_process != NULL) {
+                switch (current_process->status) {
+                    case 0:
+                        printf("%d | %d: running ",cpuTick,current_process->process_id);
+                        break;
+                    case 2:
+                        printf( "%d | %d: blocked ",cpuTick, current_process->process_id);
+                        break;
+                    case 1:
+                        printf( "%d | %d: ready ",cpuTick,current_process->process_id);
+                        break;
+                    default:
+                        break;
+                }
+                current_process = process_list[++count];
+            }
+            printf("\n");
+
             cpuTick++;
             continue;
         }
             switch(currentProcess->status){
                     // 0: Running, 1: Ready, 2: Blocking, 3: Terminated, None: 4
                 case 0:
-                    if(currentProcess->spent_cpu_time == currentProcess->cpu_time){
-                        if(currentProcess->spent_io_time >= currentProcess->io_time && currentProcess->io_time != 0){
+                    if(currentProcess->spent_cpu_time >= currentProcess->cpu_time){
+                        if(currentProcess->executionStatus == 2){
                                 currentProcess->status = 3;
                                 numProcessesFinished++;
                                 currentProcessRunTime = 0;
-                                currentProcess = deque(&queue);
+                            currentProcess = deque(&queue);
+                            shouldIncrementIO = 0;
+                            continue;
                         } else {
-//                        enque(&queue, currentProcess);
                         currentProcess->status = 2;
-//                            currentProcess = deque(&queue);
-//                            currentProcessRunTime = 0;
-//                            currentProcess->spent_io_time++;
+                            enque(&ioQueue, currentProcess);
+                            currentProcess->spent_cpu_time = 0;
+                            currentProcess = deque(&queue);
+                            shouldIncrementIO = 0;
+                            continue; // because didn't do anything this cycle
                         }
-                        
 
-                    }else if (currentProcess->spent_cpu_time == 2 * currentProcess->cpu_time){
-                        currentProcess->status = 3;
-                        numProcessesFinished++;
-                        currentProcessRunTime = 0;
-                        currentProcess = deque(&queue);
+
                     }
                     if(currentProcess == NULL){
+                        int count = 0;
+                        Process *current_process = *process_list;
+                        while(current_process != NULL) {
+                            switch (current_process->status) {
+                                case 0:
+                                    printf("%d | %d: running ",cpuTick,current_process->process_id);
+                                    break;
+                                case 2:
+                                    printf( "%d | %d: blocked ",cpuTick, current_process->process_id);
+                                    break;
+                                case 1:
+                                    printf( "%d | %d: ready ",cpuTick,current_process->process_id);
+                                    break;
+                                default:
+                                    break;
+                            }
+                            current_process = process_list[++count];
+                        }
+                        printf("\n");
+
                         cpuTick++;
                         continue;
                     }
                     if(currentProcess->status == 0){
                         currentProcess->spent_cpu_time++;
-                        printf("%d Process(%d) running\n",cpuTick,currentProcess->process_id);
 
-                    }else{
-                        currentProcess->spent_io_time++;
-                        printf("%d Process(%d) blocking\n",cpuTick,currentProcess->process_id);
                     }
                     break;
                 case 1:
-                    currentProcess->status = 0;
-                    currentProcess->spent_cpu_time++;
-                    printf("%d Process(%d) running\n",cpuTick,currentProcess->process_id);
-
+                    if(currentProcess->executionStatus == 0 || currentProcess->executionStatus == 2){
+                        currentProcess->status = 0;
+                        currentProcess->spent_cpu_time++;
+                    } else {
+                        currentProcess->status = 2;
+                        currentProcess->spent_io_time++;
+                        enque(&ioQueue, currentProcess);
+                        currentProcess = deque(&queue);
+                    }
                     break;
                 case 2:
                     if(currentProcess->spent_io_time >= currentProcess->io_time){
                         currentProcess->status = 0;
-                        currentProcess->spent_cpu_time++;
-                        printf("%d Process(%d) running\n",cpuTick,currentProcess->process_id);
-                        //                    currentProcess->status = 0;
-                        //                    enque(&queue,currentProcess);
-                        //                    currentProcess = deque(&queue);
-                        //                    currentProcessRunTime = 0;
-                        //                    currentProcess->spent_cpu_time++;
-                        //                    printf("%d Process(%d) running",cpuTick,currentProcess->process_id);
+                        currentProcess->executionStatus = 2;
+                        currentProcess->spent_cpu_time = 1;
+//                        printf("%d Process(%d) running\n",cpuTick,currentProcess->process_id);
                     } else {
                         currentProcess->spent_io_time++;
-                        printf("%d Process(%d) blocking\n",cpuTick,currentProcess->process_id);
+//                        printf("%d Process(%d) blocking\n",cpuTick,currentProcess->process_id);
                     }
                     break;
                 default:
                     break;
             }
+        int count = 0;
+        Process *current_process = *process_list;
+        while(current_process != NULL) {
+            switch (current_process->status) {
+                case 0:
+                    printf("%d | %d: running ",cpuTick,current_process->process_id);
+                    break;
+                case 2:
+                    printf( "%d | %d: blocked ",cpuTick, current_process->process_id);
+                    break;
+                case 1:
+                    printf( "%d | %d: ready ",cpuTick,current_process->process_id);
+                    break;
+                default:
+                    break;
+            }
+            current_process = process_list[++count];
+        }
+        printf("\n");
+
         
         currentProcessRunTime++;
         cpuTick++;
