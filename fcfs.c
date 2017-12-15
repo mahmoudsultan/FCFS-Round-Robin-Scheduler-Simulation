@@ -207,6 +207,7 @@ int run_fcfs(Process **process_list, int no_of_processes) {
             running = deque(&q);
             if (running != NULL) {
                 running->status = RUNNING;
+            } else {
                 not_utilized_count++;
             }
         }
@@ -235,6 +236,7 @@ int run_fcfs(Process **process_list, int no_of_processes) {
         tick++;
     }
     tick -= 2;
+    not_utilized_count -= 1;
     fprintf(f, "Finishing Time: %d\n", tick);
     if (DEBUG_MODE) {
         printf("%d\n", not_utilized_count);
